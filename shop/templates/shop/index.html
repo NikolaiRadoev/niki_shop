@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+
+{% block content %}
+
+{% load static %}
+
+<a href="{% url 'login'%}">Login</a>
+<a href="{% url 'register'%}">Register</a>
+<h1>Welcome to Niki's Shop</h1>
+
+{% endblock content %}
