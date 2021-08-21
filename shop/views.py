@@ -8,6 +8,8 @@ from .forms import (
     RegisterUserForm,
     LoginUserForm,
 )
+import stripe
+from niki_shop.settings import STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY
 
 
 def get_session_user(request):
@@ -62,3 +64,20 @@ def logout(request):
 def home(request):
     user = get_session_user(request)
     return render(request, "shop/home.html", {"user": user})
+
+
+def register_in_stripe(request):
+    user = get_session_user(request)
+    try:
+        stripe.api_key = STRIPE_SECRET_KEY
+        user_stripe_account = stripe.Account.create(
+            type="standard",
+            country="BG",
+            email=user.email,
+
+        )
+        messages.success(request, "user_stripe_account")
+    except Exception as e:
+        messages.success(request, e)
+        return redirect("home")
+    return render(request, "shop/home.html", {"user": user, "stripe": user_stripe_account})

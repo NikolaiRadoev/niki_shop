@@ -7,5 +7,10 @@
 
 <h1>Hi {{user}} Welcome to Niki's Shop home page</h1>
 <a href="{% url 'logout'%}">Logout</a>
+{% if stripe %}
+    <p>{{ stripe }}</p>
+{% else %}
+    <a href="{% url 'register_in_stripe'%}">Stripe connect</a>
+{% endif %}
 
 {% endblock content %}

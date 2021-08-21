@@ -8,4 +8,5 @@ urlpatterns = [
     path("login/", views.login, name="login"),
     path("home/", views.home, name="home"),
     path("logout/", views.logout, name="logout"),
+    path("create_stripe_account/", views.register_in_stripe, name="register_in_stripe"),
 ]
