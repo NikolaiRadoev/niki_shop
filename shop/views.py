@@ -10,6 +10,8 @@ from .forms import (
 )
 import stripe
 from niki_shop.settings import STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY
+from .models import StripeData
+from asgiref.sync import sync_to_async, async_to_sync
 
 
 def get_session_user(request):
@@ -19,6 +21,17 @@ def get_session_user(request):
     else:
         user = User.objects.get(pk=user_id)
         return user
+
+
+def check_stripe_id(request):
+    user = get_session_user(request)
+    try:
+        stripe_data = StripeData.objects.get(user=user)
+        n = stripe.Account.retrieve(stripe_data.stripe_id, STRIPE_SECRET_KEY)
+        stripe_id = n.id
+    except Exception:
+        stripe_id = None
+    return stripe_id
 
 
 # Create your views here.
@@ -63,11 +76,15 @@ def logout(request):
 
 def home(request):
     user = get_session_user(request)
-    return render(request, "shop/home.html", {"user": user})
+    stripe_id = check_stripe_id(request)
+    return render(request, "shop/home.html", {"user": user, "stripe": stripe_id})
 
 
 def register_in_stripe(request):
     user = get_session_user(request)
+    stripe_id = check_stripe_id(request)
+    if stripe_id is not None:
+        raise ValueError("You already have stripe account")
     try:
         stripe.api_key = STRIPE_SECRET_KEY
         user_stripe_account = stripe.Account.create(
@@ -77,7 +94,10 @@ def register_in_stripe(request):
 
         )
         messages.success(request, "user_stripe_account")
+        stripe_data = StripeData(user=user, stripe_id=user_stripe_account.id)
+        stripe_data.save()
+        return redirect("home")
+
     except Exception as e:
         messages.success(request, e)
         return redirect("home")
-    return render(request, "shop/home.html", {"user": user, "stripe": user_stripe_account})
