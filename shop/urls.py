@@ -9,4 +9,5 @@ urlpatterns = [
     path("home/", views.home, name="home"),
     path("logout/", views.logout, name="logout"),
     path("create_stripe_account/", views.register_in_stripe, name="register_in_stripe"),
+    path("create/new/product/", views.create_product, name="create_product"),
 ]

@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.hashers import make_password, check_password
+from .models import Product
 
 
 class RegisterUserForm(ModelForm):
@@ -75,3 +76,32 @@ class LoginUserForm(ModelForm):
     def save(self, request):
         user = self.cleaned_data["user"]
         request.session["user_id"] = user.id
+
+
+class CreateNewProduct(ModelForm):
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user")
+        super().__init__(*args, **kwargs)
+
+    class Meta:
+        model = Product
+        fields = ["name", "description", "price", "currency", "total_quantity"]
+        labels = {"total_quantity": "Quantity"}
+        widgets = {
+            "description": forms.TextInput()
+        }
+
+    def clean(self):
+        cleaned_data = super(CreateNewProduct, self).clean()
+        return cleaned_data
+
+    def save(self):
+        product = Product(
+            user=self.user,
+            name=self.cleaned_data["name"],
+            description=self.cleaned_data["description"],
+            price=self.cleaned_data["price"],
+            currency=self.cleaned_data["currency"],
+            total_quantity=self.cleaned_data["total_quantity"],
+        )
+        product.save()

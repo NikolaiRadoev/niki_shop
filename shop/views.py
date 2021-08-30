@@ -7,6 +7,7 @@ from django.contrib.auth.models import User
 from .forms import (
     RegisterUserForm,
     LoginUserForm,
+    CreateNewProduct,
 )
 import stripe
 from niki_shop.settings import STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY
@@ -96,8 +97,31 @@ def register_in_stripe(request):
         messages.success(request, "user_stripe_account")
         stripe_data = StripeData(user=user, stripe_id=user_stripe_account.id)
         stripe_data.save()
+
+        n = stripe.AccountLink.create(
+            account=user_stripe_account.id,
+            refresh_url="http://localhost:8000/shop/create_stripe_account/",
+            return_url="http://localhost:8000/shop/login/",
+            type='account_onboarding',
+        )
         return redirect("home")
 
     except Exception as e:
         messages.success(request, e)
         return redirect("home")
+
+
+def create_product(request):
+    user = get_session_user(request)
+    check_stripe_id(request)
+    form = CreateNewProduct(request.POST or None, user=user)
+    if request.method == "POST":
+        if form.is_valid():
+            try:
+                form.save()
+                messages.success(request, "Your product is Successful created")
+                return redirect("home")
+            except forms.ValidationError as e:
+                form.add_error(field=None, error=e)
+
+    return render(request, "shop/create_product.html", {"form": form})
