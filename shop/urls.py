@@ -10,4 +10,5 @@ urlpatterns = [
     path("logout/", views.logout, name="logout"),
     path("create_stripe_account/", views.register_in_stripe, name="register_in_stripe"),
     path("create/new/product/", views.create_product, name="create_product"),
+    path("edit/product/<int:product_id>/", views.edit_product, name="edit_product"),
 ]

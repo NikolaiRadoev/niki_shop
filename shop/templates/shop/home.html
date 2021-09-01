@@ -10,6 +10,7 @@
 {% if stripe %}
     <p>Your stripe id: {{ stripe }}</p>
     <a href="{% url 'create_product'%}">Create new product</a>
+    <a href="{% url 'edit_product' 1%}">Edit your products</a>
 {% else %}
     <a href="{% url 'register_in_stripe'%}">Stripe connect</a>
 {% endif %}

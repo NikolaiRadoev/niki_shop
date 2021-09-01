@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django import forms
 from django.http import HttpResponseRedirect
@@ -8,10 +8,11 @@ from .forms import (
     RegisterUserForm,
     LoginUserForm,
     CreateNewProduct,
+    EditProductForm,
 )
 import stripe
 from niki_shop.settings import STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY
-from .models import StripeData
+from .models import StripeData, Product
 from asgiref.sync import sync_to_async, async_to_sync
 
 
@@ -114,7 +115,7 @@ def register_in_stripe(request):
 def create_product(request):
     user = get_session_user(request)
     check_stripe_id(request)
-    form = CreateNewProduct(request.POST or None, user=user)
+    form = CreateNewProduct(request.POST or None, initial=[('name', 'niki')], user=user)
     if request.method == "POST":
         if form.is_valid():
             try:
@@ -125,3 +126,27 @@ def create_product(request):
                 form.add_error(field=None, error=e)
 
     return render(request, "shop/create_product.html", {"form": form})
+
+
+def edit_product(request, product_id):
+    user = get_session_user(request)
+    check_stripe_id(request)
+    product = get_object_or_404(Product, id=product_id)
+    if not product.user_id == user.id:
+        raise ValueError("Not your product")
+    initial = [('name', product.name),
+               ('description', product.description),
+               ('price', product.price),
+               ('currency', product.currency),
+               ('total_quantity', product.total_quantity)]
+    form = EditProductForm(request.POST or None, initial=initial, product_id=product_id)
+    if request.method == "POST":
+        if form.is_valid():
+            try:
+                form.save()
+                messages.success(request, "Your product is Successful edited")
+                return redirect("home")
+            except forms.ValidationError as e:
+                form.add_error(field=None, error=e)
+
+    return render(request, "shop/edit_product.html", {"form": form})

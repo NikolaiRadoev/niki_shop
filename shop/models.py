@@ -12,7 +12,7 @@ class Product(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=200)
     description = models.CharField(max_length=2000)
-    price = models.IntegerField(default=0)
+    price = models.FloatField(default=0)
     currency = models.CharField(max_length=200)
     total_quantity = models.IntegerField(default=0)
 
