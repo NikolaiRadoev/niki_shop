@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %} Details for {{ product.name }} {% endblock title%}
+
+{% block content %}
+
+{% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+<h1>Details for {{ product.name }}</h1>
+<p>Description --- {{product.description}}</p>
+<p>Price --- {{product.price}} {{product.currency}}</p>
+<p>Quantity --- {{product.total_quantity}}</p>
+{% endblock content %}

@@ -11,6 +11,21 @@
     <p>Your stripe id: {{ stripe }}</p>
     <a href="{% url 'create_product'%}">Create new product</a>
     <a href="{% url 'edit_product' 1%}">Edit your products</a>
+
+    <p>Your products</p>
+    {% if my_products %}
+        <ul>
+          {% for product in my_products %}
+          <li>
+            <a href="{% url 'detail_product' product.id%}">{{ product.name }}</a>
+            <a href="{% url 'edit_product' product.id%}">Edit</a>
+          </li>
+          {% endfor %}
+        </ul>
+    {% else %}
+        <p>No products</p>
+    {% endif %}
+
 {% else %}
     <a href="{% url 'register_in_stripe'%}">Stripe connect</a>
 {% endif %}

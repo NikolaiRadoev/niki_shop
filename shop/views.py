@@ -36,6 +36,13 @@ def check_stripe_id(request):
     return stripe_id
 
 
+def my_products(request):
+    user = get_session_user(request)
+    check_stripe_id(request)
+    products = list(user.product_set.all())
+    return products
+
+
 # Create your views here.
 def index(request):
     return render(request, "shop/index.html")
@@ -79,7 +86,8 @@ def logout(request):
 def home(request):
     user = get_session_user(request)
     stripe_id = check_stripe_id(request)
-    return render(request, "shop/home.html", {"user": user, "stripe": stripe_id})
+    products = my_products(request)
+    return render(request, "shop/home.html", {"user": user, "stripe": stripe_id, "my_products": products}, )
 
 
 def register_in_stripe(request):
@@ -115,7 +123,7 @@ def register_in_stripe(request):
 def create_product(request):
     user = get_session_user(request)
     check_stripe_id(request)
-    form = CreateNewProduct(request.POST or None, initial=[('name', 'niki')], user=user)
+    form = CreateNewProduct(request.POST or None, user=user)
     if request.method == "POST":
         if form.is_valid():
             try:
@@ -149,4 +157,15 @@ def edit_product(request, product_id):
             except forms.ValidationError as e:
                 form.add_error(field=None, error=e)
 
-    return render(request, "shop/edit_product.html", {"form": form})
+    return render(request, "shop/edit_product.html", {"form": form, "product": product})
+
+
+def detail_product(request, product_id):
+    user = get_session_user(request)
+    check_stripe_id(request)
+    product = get_object_or_404(Product, id=product_id)
+    """if product.user_id == user.id:
+        can_pay = None
+    else:
+        can_pay = True"""
+    return render(request, "shop/detail_product.html", {"product": product})

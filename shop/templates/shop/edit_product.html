@@ -5,7 +5,7 @@
 {% block content %}
         <h1>Edit Product</h1>
     {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
-    <form action="{% url 'edit_product' 1%}" method="post">{% csrf_token %}<!--polls:vote-->
+    <form action="{% url 'edit_product' product.id%}" method="post">{% csrf_token %}<!--polls:vote-->
         {{form.as_ul}}
 
     <input type="submit" value="Edit">
