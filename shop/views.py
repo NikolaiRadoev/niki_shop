@@ -43,6 +43,13 @@ def my_products(request):
     return products
 
 
+def others_products(request):
+    user = get_session_user(request)
+    check_stripe_id(request)
+    products = list(Product.objects.exclude(user=user))
+    return products
+
+
 # Create your views here.
 def index(request):
     return render(request, "shop/index.html")
@@ -86,8 +93,18 @@ def logout(request):
 def home(request):
     user = get_session_user(request)
     stripe_id = check_stripe_id(request)
-    products = my_products(request)
-    return render(request, "shop/home.html", {"user": user, "stripe": stripe_id, "my_products": products}, )
+    products_my = my_products(request)
+    products_others = others_products(request)
+    return render(
+        request,
+        "shop/home.html",
+        {
+            "user": user,
+            "stripe": stripe_id,
+            "my_products": products_my,
+            "others_products": products_others,
+        },
+    )
 
 
 def register_in_stripe(request):
