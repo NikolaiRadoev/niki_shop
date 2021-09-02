@@ -169,3 +169,13 @@ def detail_product(request, product_id):
     else:
         can_pay = True"""
     return render(request, "shop/detail_product.html", {"product": product})
+
+
+def delete_product(request, product_id):
+    user = get_session_user(request)
+    check_stripe_id(request)
+    product = get_object_or_404(Product, id=product_id)
+    if not product.user_id == user.id:
+        raise ValueError("Not your product")
+    product.delete()
+    return HttpResponseRedirect(reverse("home"))
