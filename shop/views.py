@@ -194,5 +194,6 @@ def delete_product(request, product_id):
     product = get_object_or_404(Product, id=product_id)
     if not product.user_id == user.id:
         raise ValueError("Not your product")
+    stripe.Product.delete(product.product_stripe_id)
     product.delete()
     return HttpResponseRedirect(reverse("home"))

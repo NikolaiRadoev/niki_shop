@@ -10,6 +10,7 @@ class StripeData(models.Model):
 
 class Product(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    product_stripe_id = models.CharField(max_length=200, null=True)
     name = models.CharField(max_length=200)
     description = models.CharField(max_length=2000)
     price = models.FloatField(default=0)

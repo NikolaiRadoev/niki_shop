@@ -9,6 +9,11 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.hashers import make_password, check_password
 from .models import Product
 from django.shortcuts import render, redirect, get_object_or_404
+import stripe
+from niki_shop.settings import STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY
+
+stripe.api_key = STRIPE_SECRET_KEY
+
 
 class RegisterUserForm(ModelForm):
     class Meta:
@@ -97,8 +102,18 @@ class CreateNewProduct(ModelForm):
         return cleaned_data
 
     def save(self):
+        stripe_product = stripe.Product.create(name=self.cleaned_data["name"],
+                                               description=self.cleaned_data["description"],
+                                               metadata={'price': str(self.cleaned_data["price"]),
+                                                         'currency': str(self.cleaned_data["currency"]),
+                                                         'total_quantity': str(self.cleaned_data["total_quantity"])})
+        stripe.Price.create(unit_amount=int(self.cleaned_data["price"]) * 100,
+                            currency=self.cleaned_data["currency"],
+                            product=stripe_product.id)
+
         product = Product(
             user=self.user,
+            product_stripe_id=stripe_product.id,
             name=self.cleaned_data["name"],
             description=self.cleaned_data["description"],
             price=self.cleaned_data["price"],
@@ -128,6 +143,20 @@ class EditProductForm(ModelForm):
         return cleaned_data
 
     def save(self):
+        stripe.Product.modify(
+            self.product.product_stripe_id,
+            name=self.cleaned_data["name"],
+            description=self.cleaned_data["description"],
+            metadata={'price': str(self.cleaned_data["price"]),
+                      'currency': str(self.cleaned_data["currency"]),
+                      'total_quantity': str(self.cleaned_data["total_quantity"])}),
+
+        stripe.Price.modify(
+            self.product.product_stripe_id,
+            unit_amount=int(self.cleaned_data["price"]) * 100,
+            currency=self.cleaned_data["currency"],
+        )
+
         self.product.name = self.cleaned_data["name"]
         self.product.description = self.cleaned_data["description"]
         self.product.price = self.cleaned_data["price"]
