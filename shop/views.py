@@ -95,6 +95,7 @@ def home(request):
     stripe_id = check_stripe_id(request)
     products_my = my_products(request)
     products_others = others_products(request)
+    stripe_user = stripe.Account.retrieve(stripe_id, STRIPE_SECRET_KEY)
     return render(
         request,
         "shop/home.html",
@@ -103,6 +104,7 @@ def home(request):
             "stripe": stripe_id,
             "my_products": products_my,
             "others_products": products_others,
+            "stripe_user": stripe_user,
         },
     )
 
@@ -111,6 +113,16 @@ def register_in_stripe(request):
     user = get_session_user(request)
     stripe_id = check_stripe_id(request)
     if stripe_id is not None:
+        stripe_user = stripe.Account.retrieve(stripe_id, STRIPE_SECRET_KEY)
+        if not stripe_user.charges_enabled and not stripe_user.details_submitted:
+            n = stripe.AccountLink.create(
+                account=stripe_user.id,
+                refresh_url="http://localhost:8000/shop/create_stripe_account/",
+                return_url="http://localhost:8000/shop/home/",
+                type='account_onboarding',
+            )
+            # return redirect("home")
+            return redirect(n.url)
         raise ValueError("You already have stripe account")
     try:
         stripe.api_key = STRIPE_SECRET_KEY
@@ -127,10 +139,11 @@ def register_in_stripe(request):
         n = stripe.AccountLink.create(
             account=user_stripe_account.id,
             refresh_url="http://localhost:8000/shop/create_stripe_account/",
-            return_url="http://localhost:8000/shop/login/",
+            return_url="http://localhost:8000/shop/home/",
             type='account_onboarding',
         )
-        return redirect("home")
+        # return redirect("home")
+        return redirect(n.url)
 
     except Exception as e:
         messages.success(request, e)

@@ -7,6 +7,11 @@
 
 <h1>Hi {{user}} Welcome to Niki's Shop home page</h1>
 <a href="{% url 'logout'%}">Logout</a>
+<br>
+<br>
+{% if not stripe_user.charges_enabled and not stripe_user.details_submitted %}
+    <a href="{% url 'register_in_stripe'%}">Activate your Stripe account</a>
+{% endif %}
 {% if stripe %}
     <p>Your stripe id: {{ stripe }}</p>
     <a href="{% url 'create_product'%}">Create new product</a>
