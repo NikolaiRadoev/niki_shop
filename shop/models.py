@@ -19,3 +19,13 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class BuyProducts(models.Model):
+    user = models.ManyToManyField(User)
+    product = models.ManyToManyField(Product)
+    product_price = models.FloatField(default=0)
+    product_currency = models.CharField(max_length=200)
+    quantity = models.IntegerField(default=0)
+    product_name = models.CharField(max_length=200, null=True)
+    product_id = models.IntegerField(default=0, null=True)

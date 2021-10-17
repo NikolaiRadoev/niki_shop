@@ -11,6 +11,8 @@
 <br>
 {% if not stripe_user.charges_enabled and not stripe_user.details_submitted %}
     <a href="{% url 'register_in_stripe'%}">Activate your Stripe account</a>
+{% else %}
+    <p>Your Stripe account is activated</p>
 {% endif %}
 {% if stripe %}
     <p>Your stripe id: {{ stripe }}</p>
@@ -40,6 +42,32 @@
               {% for product in others_products %}
               <li>
                 <a href="{% url 'detail_product' product.id%}">{{ product.name }}</a>
+              </li>
+              {% endfor %}
+            </ul>
+        {% else %}
+            <p>No products</p>
+        {% endif %}
+
+    <p>Purchased products</p>
+        {% if purchased_products %}
+            <ul>
+              {% for product in purchased_products %}
+              <li>
+                <p>You buy {{product.quantity}} item from this product: <a href="{% url 'detail_product' product.product_id%}">{{ product.product_name }}</a> on price: {% widthratio product.product_price 1 product.quantity%} {{product.product_currency}}</p>
+              </li>
+              {% endfor %}
+            </ul>
+        {% else %}
+            <p>No products</p>
+        {% endif %}
+
+    <p>Sell products</p>
+        {% if sell_products %}
+            <ul>
+              {% for product in sell_products %}
+              <li>
+                <p>You sell {{product.quantity}} item from this product: <a href="{% url 'detail_product' product.product_id%}">{{ product.product_name }}</a> on price: {% widthratio product.product_price 1 product.quantity%} {{product.product_currency}}</p>
               </li>
               {% endfor %}
             </ul>

@@ -9,10 +9,11 @@ from .forms import (
     LoginUserForm,
     CreateNewProduct,
     EditProductForm,
+    BuyProductsForm,
 )
 import stripe
 from niki_shop.settings import STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY
-from .models import StripeData, Product
+from .models import StripeData, Product, BuyProducts
 from asgiref.sync import sync_to_async, async_to_sync
 
 
@@ -47,6 +48,20 @@ def others_products(request):
     user = get_session_user(request)
     check_stripe_id(request)
     products = list(Product.objects.exclude(user=user))
+    return products
+
+
+def purchased_products(request):
+    user = get_session_user(request)
+    check_stripe_id(request)
+    products = list(user.buyproducts_set.all())
+    return products
+
+
+def sell_products(request):
+    user = get_session_user(request)
+    check_stripe_id(request)
+    products = list(BuyProducts.objects.exclude(user=user).where())
     return products
 
 
@@ -95,6 +110,8 @@ def home(request):
     stripe_id = check_stripe_id(request)
     products_my = my_products(request)
     products_others = others_products(request)
+    products_purchased = purchased_products(request)
+    products_sell = sell_products(request)
     stripe_user = stripe.Account.retrieve(stripe_id, STRIPE_SECRET_KEY)
     return render(
         request,
@@ -105,6 +122,8 @@ def home(request):
             "my_products": products_my,
             "others_products": products_others,
             "stripe_user": stripe_user,
+            "purchased_products": products_purchased,
+            "sell_products": products_sell,
         },
     )
 
@@ -194,11 +213,20 @@ def detail_product(request, product_id):
     user = get_session_user(request)
     check_stripe_id(request)
     product = get_object_or_404(Product, id=product_id)
-    """if product.user_id == user.id:
+    if product.user_id == user.id:
         can_pay = None
     else:
-        can_pay = True"""
-    return render(request, "shop/detail_product.html", {"product": product})
+        can_pay = True
+    form = BuyProductsForm(request.POST or None, product=product, user=user)
+    if request.method == "POST":
+        if form.is_valid():
+            try:
+                form.save()
+                messages.success(request, "You Successful buy")
+                return redirect("home")
+            except forms.ValidationError as e:
+                form.add_error(field=None, error=e)
+    return render(request, "shop/detail_product.html", {"product": product, "can_pay": can_pay, "form": form})
 
 
 def delete_product(request, product_id):
@@ -207,6 +235,6 @@ def delete_product(request, product_id):
     product = get_object_or_404(Product, id=product_id)
     if not product.user_id == user.id:
         raise ValueError("Not your product")
-    stripe.Product.delete(product.product_stripe_id)
+    # stripe.Product.delete(product.product_stripe_id)
     product.delete()
     return HttpResponseRedirect(reverse("home"))

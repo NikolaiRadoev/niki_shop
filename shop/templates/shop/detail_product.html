@@ -9,4 +9,12 @@
 <p>Description --- {{product.description}}</p>
 <p>Price --- {{product.price}} {{product.currency}}</p>
 <p>Quantity --- {{product.total_quantity}}</p>
+
+{% if can_pay %}
+    <form action="{% url 'detail_product' product.id%}" method="post">{% csrf_token %}<!--polls:vote-->
+        {{form.as_ul}}
+
+    <input type="submit" value="Pay">
+    </form>
+{% endif %}
 {% endblock content %}

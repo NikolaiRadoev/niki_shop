@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.hashers import make_password, check_password
-from .models import Product
+from .models import Product, BuyProducts
 from django.shortcuts import render, redirect, get_object_or_404
 import stripe
 from niki_shop.settings import STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY
@@ -101,19 +101,19 @@ class CreateNewProduct(ModelForm):
         cleaned_data = super(CreateNewProduct, self).clean()
         return cleaned_data
 
-    def save(self):
-        stripe_product = stripe.Product.create(name=self.cleaned_data["name"],
+    def save(self, commit=True):
+        """stripe_product = stripe.Product.create(name=self.cleaned_data["name"],
                                                description=self.cleaned_data["description"],
                                                metadata={'price': str(self.cleaned_data["price"]),
                                                          'currency': str(self.cleaned_data["currency"]),
                                                          'total_quantity': str(self.cleaned_data["total_quantity"])})
         stripe.Price.create(unit_amount=int(self.cleaned_data["price"]) * 100,
                             currency=self.cleaned_data["currency"],
-                            product=stripe_product.id)
+                            product=stripe_product.id)"""
 
         product = Product(
             user=self.user,
-            product_stripe_id=stripe_product.id,
+            # product_stripe_id=stripe_product.id,
             name=self.cleaned_data["name"],
             description=self.cleaned_data["description"],
             price=self.cleaned_data["price"],
@@ -142,8 +142,8 @@ class EditProductForm(ModelForm):
         cleaned_data = super(EditProductForm, self).clean()
         return cleaned_data
 
-    def save(self):
-        stripe.Product.modify(
+    def save(self, commit=True):
+        """stripe.Product.modify(
             self.product.product_stripe_id,
             name=self.cleaned_data["name"],
             description=self.cleaned_data["description"],
@@ -155,7 +155,7 @@ class EditProductForm(ModelForm):
             self.product.product_stripe_id,
             unit_amount=int(self.cleaned_data["price"]) * 100,
             currency=self.cleaned_data["currency"],
-        )
+        )"""
 
         self.product.name = self.cleaned_data["name"]
         self.product.description = self.cleaned_data["description"]
@@ -163,3 +163,37 @@ class EditProductForm(ModelForm):
         self.product.currency = self.cleaned_data["currency"]
         self.product.total_quantity = self.cleaned_data["total_quantity"]
         self.product.save()
+
+
+class BuyProductsForm(ModelForm):
+    def __init__(self, *args, **kwargs):
+        self.product = kwargs.pop("product")
+        self.user = kwargs.pop("user")
+        super().__init__(*args, **kwargs)
+
+    class Meta:
+        model = Product
+        fields = ["total_quantity"]
+        labels = {"total_quantity": "Quantity"}
+
+    def clean(self):
+        cleaned_data = super(BuyProductsForm, self).clean()
+        return cleaned_data
+
+    def save(self, commit=True):
+        buy_products = BuyProducts(
+            # user=self.user,
+            # product=self.product,
+            product_price=self.product.price,
+            product_currency=self.product.currency,
+            quantity=self.cleaned_data["total_quantity"],
+            product_name=self.product.name,
+            product_id=self.product.id,
+        )
+        buy_products.save()
+        buy_products.user.add(self.user)
+        buy_products.product.add(self.product)
+
+        self.product.total_quantity -= self.cleaned_data["total_quantity"]
+        self.product.save()
+
