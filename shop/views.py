@@ -26,8 +26,8 @@ def get_session_user(request):
         return user
 
 
-def check_stripe_id(request):
-    user = get_session_user(request)
+def check_stripe_id(user):
+    # user = get_session_user(request)
     try:
         stripe_data = StripeData.objects.get(user=user)
         n = stripe.Account.retrieve(stripe_data.stripe_id, STRIPE_SECRET_KEY)
@@ -37,31 +37,27 @@ def check_stripe_id(request):
     return stripe_id
 
 
-def my_products(request):
-    user = get_session_user(request)
-    check_stripe_id(request)
+def my_products(user):
+    check_stripe_id(user)
     products = list(user.product_set.all())
     return products
 
 
-def others_products(request):
-    user = get_session_user(request)
-    check_stripe_id(request)
+def others_products(user):
+    check_stripe_id(user)
     products = list(Product.objects.exclude(user=user))
     return products
 
 
-def purchased_products(request):
-    user = get_session_user(request)
-    check_stripe_id(request)
+def purchased_products(user):
+    check_stripe_id(user)
     products = list(user.buyproducts_set.all())
     return products
 
 
-def sell_products(request):
-    user = get_session_user(request)
-    check_stripe_id(request)
-    products = list(BuyProducts.objects.exclude(user=user).where())
+def sell_products(user):
+    check_stripe_id(user)
+    products = list(BuyProducts.user.product_set.all())
     return products
 
 
@@ -107,11 +103,11 @@ def logout(request):
 
 def home(request):
     user = get_session_user(request)
-    stripe_id = check_stripe_id(request)
-    products_my = my_products(request)
-    products_others = others_products(request)
-    products_purchased = purchased_products(request)
-    products_sell = sell_products(request)
+    stripe_id = check_stripe_id(user)
+    products_my = my_products(user)
+    products_others = others_products(user)
+    products_purchased = purchased_products(user)
+    products_sell = sell_products(user)
     stripe_user = stripe.Account.retrieve(stripe_id, STRIPE_SECRET_KEY)
     return render(
         request,
@@ -130,7 +126,7 @@ def home(request):
 
 def register_in_stripe(request):
     user = get_session_user(request)
-    stripe_id = check_stripe_id(request)
+    stripe_id = check_stripe_id(user)
     if stripe_id is not None:
         stripe_user = stripe.Account.retrieve(stripe_id, STRIPE_SECRET_KEY)
         if not stripe_user.charges_enabled and not stripe_user.details_submitted:
@@ -171,7 +167,7 @@ def register_in_stripe(request):
 
 def create_product(request):
     user = get_session_user(request)
-    check_stripe_id(request)
+    check_stripe_id(user)
     form = CreateNewProduct(request.POST or None, user=user)
     if request.method == "POST":
         if form.is_valid():
@@ -187,7 +183,7 @@ def create_product(request):
 
 def edit_product(request, product_id):
     user = get_session_user(request)
-    check_stripe_id(request)
+    check_stripe_id(user)
     product = get_object_or_404(Product, id=product_id)
     if not product.user_id == user.id:
         raise ValueError("Not your product")
@@ -196,7 +192,7 @@ def edit_product(request, product_id):
                ('price', product.price),
                ('currency', product.currency),
                ('total_quantity', product.total_quantity)]
-    form = EditProductForm(request.POST or None, initial=initial, product_id=product_id)
+    form = EditProductForm(request.POST or None, instance=product, product_id=product_id)
     if request.method == "POST":
         if form.is_valid():
             try:
@@ -211,7 +207,7 @@ def edit_product(request, product_id):
 
 def detail_product(request, product_id):
     user = get_session_user(request)
-    check_stripe_id(request)
+    check_stripe_id(user)
     product = get_object_or_404(Product, id=product_id)
     if product.user_id == user.id:
         can_pay = None
@@ -231,7 +227,7 @@ def detail_product(request, product_id):
 
 def delete_product(request, product_id):
     user = get_session_user(request)
-    check_stripe_id(request)
+    check_stripe_id(user)
     product = get_object_or_404(Product, id=product_id)
     if not product.user_id == user.id:
         raise ValueError("Not your product")
