@@ -57,7 +57,11 @@ def purchased_products(user):
 
 def sell_products(user):
     check_stripe_id(user)
-    products = list(BuyProducts.user.product_set.all())
+    products = list()
+    for p in user.product_set.all():
+        for n in p.buyproducts_set.all():
+            if n is not None:
+                products.append(n)
     return products
 
 
@@ -217,9 +221,41 @@ def detail_product(request, product_id):
     if request.method == "POST":
         if form.is_valid():
             try:
+                if product.product_stripe_id:
+                    price = stripe.Price.list(product=product.product_stripe_id)
+                else:
+                    stripe_product = stripe.Product.create(name=product.name,
+                                                           description=product.description,
+                                                           )
+                    price = stripe.Price.create(unit_amount=int(product.price) * 100,
+                                                currency=product.currency,
+                                                product=stripe_product.id)
+                    product.product_stripe_id = stripe_product.id
+                    product.save()
+
+                checkout_session = stripe.checkout.Session.create(
+                    line_items=[
+                        {
+                            # Provide the exact Price ID (e.g. pr_1234) of the product you want to sell
+                            'price': price.id,
+                            'quantity': form.cleaned_data["total_quantity"],
+                        },
+                    ],
+                    payment_method_types=[
+                        'card',
+                    ],
+                    mode='payment',
+                    success_url="http://localhost:8000/shop/home/",
+                    cancel_url="http://localhost:8000/shop/login/",
+                )
+
+            except Exception as e:
+                return str(e)
+            try:
                 form.save()
                 messages.success(request, "You Successful buy")
-                return redirect("home")
+                # return redirect("home")
+                return redirect(checkout_session.url, code=303)
             except forms.ValidationError as e:
                 form.add_error(field=None, error=e)
     return render(request, "shop/detail_product.html", {"product": product, "can_pay": can_pay, "form": form})

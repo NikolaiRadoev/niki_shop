@@ -178,6 +178,8 @@ class BuyProductsForm(ModelForm):
 
     def clean(self):
         cleaned_data = super(BuyProductsForm, self).clean()
+        if cleaned_data["total_quantity"] <= 0:
+            raise ValueError("Quantity can't be 0 or less")
         return cleaned_data
 
     def save(self, commit=True):
@@ -196,4 +198,3 @@ class BuyProductsForm(ModelForm):
 
         self.product.total_quantity -= self.cleaned_data["total_quantity"]
         self.product.save()
-
