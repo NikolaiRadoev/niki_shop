@@ -221,8 +221,8 @@ def detail_product(request, product_id):
     if request.method == "POST":
         if form.is_valid():
             try:
-                if product.product_stripe_id:
-                    price = stripe.Price.list(product=product.product_stripe_id)
+                if product.price_stripe_id:
+                    price = stripe.Price.retrieve(product.price_stripe_id)
                 else:
                     stripe_product = stripe.Product.create(name=product.name,
                                                            description=product.description,
@@ -231,6 +231,7 @@ def detail_product(request, product_id):
                                                 currency=product.currency,
                                                 product=stripe_product.id)
                     product.product_stripe_id = stripe_product.id
+                    product.price_stripe_id = price.id
                     product.save()
 
                 checkout_session = stripe.checkout.Session.create(

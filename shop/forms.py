@@ -140,6 +140,15 @@ class EditProductForm(ModelForm):
 
     def clean(self):
         cleaned_data = super(EditProductForm, self).clean()
+        if cleaned_data["price"] != self.product.price or cleaned_data["currency"] != self.product.currency and self.product.price_stripe_id:
+            price_stripe = stripe.Price.create(unit_amount=int(cleaned_data["price"]) * 100,
+                                               currency=cleaned_data["currency"],
+                                               product=self.product.product_stripe_id)
+            self.product.price_stripe_id = price_stripe.id
+        if cleaned_data["name"] != self.product.name and self.product.product_stripe_id:
+            stripe.Product.modify(self.product.product_stripe_id, name=cleaned_data["name"])
+        if cleaned_data["description"] != self.product.description and self.product.product_stripe_id:
+            stripe.Product.modify(self.product.product_stripe_id, description=cleaned_data["description"])
         return cleaned_data
 
     def save(self, commit=True):
@@ -162,6 +171,7 @@ class EditProductForm(ModelForm):
         self.product.price = self.cleaned_data["price"]
         self.product.currency = self.cleaned_data["currency"]
         self.product.total_quantity = self.cleaned_data["total_quantity"]
+
         self.product.save()
 
 
