@@ -1,16 +1,12 @@
+import stripe
+
 from django import forms
 from django.db import transaction
-from django.utils.translation import gettext_lazy
 from django.forms import ModelForm
-from django.forms import formset_factory, inlineformset_factory
-from django.utils import timezone
 from django.contrib.auth.models import User
-from django.contrib.auth import authenticate, login
 from django.contrib.auth.hashers import make_password, check_password
-from .models import Product, BuyProducts
-from django.shortcuts import render, redirect, get_object_or_404
-import stripe
-from niki_shop.settings import STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY
+from niki_shop.settings import STRIPE_SECRET_KEY
+from .models import Product, ProductPurchase
 
 stripe.api_key = STRIPE_SECRET_KEY
 
@@ -83,10 +79,12 @@ class LoginUserForm(ModelForm):
         request.session["user_id"] = user.id
 
 
-class CreateNewProduct(ModelForm):
+class ProductForm(ModelForm):
     def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.user = kwargs.pop("user")
-        super().__init__(*args, **kwargs)
+        if not getattr(self.instance, "user", None):
+            self.instance.user = self.user
 
     class Meta:
         model = Product
@@ -94,91 +92,22 @@ class CreateNewProduct(ModelForm):
         labels = {"total_quantity": "Quantity"}
         widgets = {
             "description": forms.Textarea(),
-            "currency": forms.Select(choices=[('BGN', 'BGN'), ('USD', 'USD'), ('EUR', 'EUR')])
+            "currency": forms.Select(
+                choices=[("BGN", "BGN"), ("USD", "USD"), ("EUR", "EUR")]
+            ),
         }
 
     def clean(self):
-        cleaned_data = super(CreateNewProduct, self).clean()
+        cleaned_data = super().clean()
+        if not self.user.id == self.instance.user.id:
+            raise forms.ValidationError("Not your product")
         return cleaned_data
-
-    def save(self, commit=True):
-        """stripe_product = stripe.Product.create(name=self.cleaned_data["name"],
-                                               description=self.cleaned_data["description"],
-                                               metadata={'price': str(self.cleaned_data["price"]),
-                                                         'currency': str(self.cleaned_data["currency"]),
-                                                         'total_quantity': str(self.cleaned_data["total_quantity"])})
-        stripe.Price.create(unit_amount=int(self.cleaned_data["price"]) * 100,
-                            currency=self.cleaned_data["currency"],
-                            product=stripe_product.id)"""
-
-        product = Product(
-            user=self.user,
-            # product_stripe_id=stripe_product.id,
-            name=self.cleaned_data["name"],
-            description=self.cleaned_data["description"],
-            price=self.cleaned_data["price"],
-            currency=self.cleaned_data["currency"],
-            total_quantity=self.cleaned_data["total_quantity"],
-        )
-        product.save()
-
-
-class EditProductForm(ModelForm):
-    def __init__(self, *args, **kwargs):
-        self.product_id = kwargs.pop("product_id")
-        self.product = get_object_or_404(Product, id=self.product_id)
-        super().__init__(*args, **kwargs)
-
-    class Meta:
-        model = Product
-        fields = ["name", "description", "price", "currency", "total_quantity"]
-        labels = {"total_quantity": "Quantity"}
-        widgets = {
-            "description": forms.Textarea(),
-            "currency": forms.Select(choices=[('BGN', 'BGN'), ('USD', 'USD'), ('EUR', 'EUR')])
-        }
-
-    def clean(self):
-        cleaned_data = super(EditProductForm, self).clean()
-        if cleaned_data["price"] != self.product.price or cleaned_data["currency"] != self.product.currency and self.product.price_stripe_id:
-            price_stripe = stripe.Price.create(unit_amount=int(cleaned_data["price"]) * 100,
-                                               currency=cleaned_data["currency"],
-                                               product=self.product.product_stripe_id)
-            self.product.price_stripe_id = price_stripe.id
-        if cleaned_data["name"] != self.product.name and self.product.product_stripe_id:
-            stripe.Product.modify(self.product.product_stripe_id, name=cleaned_data["name"])
-        if cleaned_data["description"] != self.product.description and self.product.product_stripe_id:
-            stripe.Product.modify(self.product.product_stripe_id, description=cleaned_data["description"])
-        return cleaned_data
-
-    def save(self, commit=True):
-        """stripe.Product.modify(
-            self.product.product_stripe_id,
-            name=self.cleaned_data["name"],
-            description=self.cleaned_data["description"],
-            metadata={'price': str(self.cleaned_data["price"]),
-                      'currency': str(self.cleaned_data["currency"]),
-                      'total_quantity': str(self.cleaned_data["total_quantity"])}),
-
-        stripe.Price.modify(
-            self.product.product_stripe_id,
-            unit_amount=int(self.cleaned_data["price"]) * 100,
-            currency=self.cleaned_data["currency"],
-        )"""
-
-        self.product.name = self.cleaned_data["name"]
-        self.product.description = self.cleaned_data["description"]
-        self.product.price = self.cleaned_data["price"]
-        self.product.currency = self.cleaned_data["currency"]
-        self.product.total_quantity = self.cleaned_data["total_quantity"]
-
-        self.product.save()
 
 
 class BuyProductsForm(ModelForm):
     def __init__(self, *args, **kwargs):
-        self.product = kwargs.pop("product")
         self.user = kwargs.pop("user")
+        self.product = kwargs.pop("product")
         super().__init__(*args, **kwargs)
 
     class Meta:
@@ -192,19 +121,16 @@ class BuyProductsForm(ModelForm):
             raise ValueError("Quantity can't be 0 or less")
         return cleaned_data
 
+    @transaction.atomic
     def save(self, commit=True):
-        buy_products = BuyProducts(
-            # user=self.user,
-            # product=self.product,
+        purchase = ProductPurchase(
+            buyer=self.user,
+            product=self.product,
+            product_name=self.product.name,
             product_price=self.product.price,
             product_currency=self.product.currency,
             quantity=self.cleaned_data["total_quantity"],
-            product_name=self.product.name,
-            product_id=self.product.id,
         )
-        buy_products.save()
-        buy_products.user.add(self.user)
-        buy_products.product.add(self.product)
-
-        self.product.total_quantity -= self.cleaned_data["total_quantity"]
+        purchase.save()
+        self.product.total_quantity -= purchase.quantity
         self.product.save()
